@@ -13,9 +13,10 @@ package notifier
 import (
 	"bytes"
 	"fmt"
-	log "github.com/cihub/seelog"
 	"net/smtp"
 	"text/template"
+
+	log "github.com/cihub/seelog"
 )
 
 type EmailNotifier struct {
@@ -72,7 +73,7 @@ func (emailer *EmailNotifier) Notify(msg Message) error {
 			emailer.groupMsgs[clusterGroup] = msg
 		}
 	}
-	if len(emailer.Groups) == len(emailer.groupMsgs) {
+	if len(emailer.groupMsgs) > 0 {
 		return emailer.sendConsumerGroupStatusNotify()
 	}
 	return nil
@@ -86,7 +87,7 @@ func (emailer *EmailNotifier) sendConsumerGroupStatusNotify() error {
 	var bytesToSend bytes.Buffer
 	log.Debug("send email")
 
-	msgs := make([]Message, len(emailer.Groups))
+	msgs := make([]Message, len(emailer.groupMsgs))
 	i := 0
 	for group, msg := range emailer.groupMsgs {
 		msgs[i] = msg
