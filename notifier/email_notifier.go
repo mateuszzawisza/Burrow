@@ -33,7 +33,6 @@ type EmailNotifier struct {
 	Groups       []string
 	auth         smtp.Auth
 	template     *template.Template
-	groupMsgs    map[string]Message
 }
 
 func (emailer *EmailNotifier) NotifierName() string {
@@ -63,18 +62,16 @@ func (emailer *EmailNotifier) Notify(msg Message) error {
 		emailer.template = template
 	}
 
-	if emailer.groupMsgs == nil {
-		emailer.groupMsgs = make(map[string]Message)
-	}
+	groupMsgs := make(map[string]Message)
 
 	for _, group := range emailer.Groups {
 		clusterGroup := fmt.Sprintf("%s,%s", msg.Cluster, msg.Group)
 		if clusterGroup == group {
-			emailer.groupMsgs[clusterGroup] = msg
+			groupMsgs[clusterGroup] = msg
 		}
 	}
-	if len(emailer.groupMsgs) > 0 {
-		return emailer.sendConsumerGroupStatusNotify()
+	if len(groupMsgs) > 0 {
+		return emailer.sendConsumerGroupStatusNotify(groupMsgs)
 	}
 	return nil
 }
@@ -83,15 +80,15 @@ func (emailer *EmailNotifier) Ignore(msg Message) bool {
 	return int(msg.Status) < emailer.Threshold
 }
 
-func (emailer *EmailNotifier) sendConsumerGroupStatusNotify() error {
+func (emailer *EmailNotifier) sendConsumerGroupStatusNotify(groupMsgs map[string]Message) error {
 	var bytesToSend bytes.Buffer
 	log.Debug("send email")
 
-	msgs := make([]Message, len(emailer.groupMsgs))
+	msgs := make([]Message, len(groupMsgs))
 	i := 0
-	for group, msg := range emailer.groupMsgs {
+	for group, msg := range groupMsgs {
 		msgs[i] = msg
-		delete(emailer.groupMsgs, group)
+		delete(groupMsgs, group)
 		i++
 	}
 
