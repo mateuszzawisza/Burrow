@@ -13,13 +13,16 @@ package main
 import (
 	"flag"
 	"fmt"
-	log "github.com/cihub/seelog"
-	"github.com/samuel/go-zookeeper/zk"
+	"net/http"
+	_ "net/http/pprof"
 	"os"
 	"os/signal"
 	"runtime"
 	"syscall"
 	"time"
+
+	log "github.com/cihub/seelog"
+	"github.com/samuel/go-zookeeper/zk"
 )
 
 type KafkaCluster struct {
@@ -156,8 +159,20 @@ func burrowMain() int {
 	return 0
 }
 
+func printGoRoutines() {
+	c := time.Tick(1 * time.Second)
+	for now := range c {
+		log.Println("GoRoutines: %d\n", runtime.NumGoroutine())
+	}
+}
+
 func main() {
 	runtime.GOMAXPROCS(runtime.NumCPU())
+	go printGoRoutines()
+
+	go func() {
+		log.Println(http.ListenAndServe("localhost:6060", nil))
+	}()
 
 	rv := burrowMain()
 	if rv != 0 {

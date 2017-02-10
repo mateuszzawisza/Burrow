@@ -13,11 +13,12 @@ package main
 import (
 	"container/ring"
 	"fmt"
-	log "github.com/cihub/seelog"
-	"github.com/linkedin/Burrow/protocol"
 	"regexp"
 	"sync"
 	"time"
+
+	log "github.com/cihub/seelog"
+	"github.com/linkedin/Burrow/protocol"
 )
 
 type OffsetStorage struct {
@@ -237,7 +238,9 @@ func (storage *OffsetStorage) addConsumerOffset(offset *protocol.PartitionOffset
 	partitionCount := len(topicPartitionList)
 	clusterOffsets.brokerLock.RUnlock()
 
+	start := time.Now()
 	clusterOffsets.consumerLock.Lock()
+	log.Debugf("Time taken on lock in offsets_store.go:241: %v", time.Since(start))
 	consumerMap, ok := clusterOffsets.consumer[offset.Group]
 	if !ok {
 		clusterOffsets.consumer[offset.Group] = make(map[string][]*ring.Ring)
@@ -320,7 +323,9 @@ func (storage *OffsetStorage) Stop() {
 }
 
 func (storage *OffsetStorage) dropGroup(cluster string, group string, resultChannel chan protocol.StatusConstant) {
+	start := time.Now()
 	storage.offsets[cluster].consumerLock.Lock()
+	log.Debugf("Time taken on lock in offsets_store.go:327: %v", time.Since(start))
 
 	if _, ok := storage.offsets[cluster].consumer[group]; ok {
 		log.Infof("Removing group %s from cluster %s by request", group, cluster)
@@ -360,7 +365,9 @@ func (storage *OffsetStorage) evaluateGroup(cluster string, group string, result
 	}
 
 	// Make sure the group even exists
+	start := time.Now()
 	clusterMap.consumerLock.Lock()
+	log.Debugf("Time taken on lock in offsets_store.go:369: %v", time.Since(start))
 	consumerMap, ok := clusterMap.consumer[group]
 	if !ok {
 		clusterMap.consumerLock.Unlock()
@@ -551,7 +558,9 @@ func (storage *OffsetStorage) requestConsumerList(request *RequestConsumerList) 
 		return
 	}
 
+	start := time.Now()
 	storage.offsets[request.Cluster].consumerLock.RLock()
+	log.Debugf("Time taken on lock in offsets_store.go:562: %v", time.Since(start))
 	consumerList := make([]string, len(storage.offsets[request.Cluster].consumer))
 	i := 0
 	for group := range storage.offsets[request.Cluster].consumer {
@@ -580,7 +589,9 @@ func (storage *OffsetStorage) requestTopicList(request *RequestTopicList) {
 		}
 		storage.offsets[request.Cluster].brokerLock.RUnlock()
 	} else {
+		start := time.Now()
 		storage.offsets[request.Cluster].consumerLock.RLock()
+		log.Debugf("Time taken on rlock in offsets_store.go:591: %v", time.Since(start))
 		if _, ok := storage.offsets[request.Cluster].consumer[request.Group]; ok {
 			response.TopicList = make([]string, len(storage.offsets[request.Cluster].consumer[request.Group]))
 			i := 0
@@ -619,7 +630,9 @@ func (storage *OffsetStorage) requestOffsets(request *RequestOffsets) {
 		}
 		storage.offsets[request.Cluster].brokerLock.RUnlock()
 	} else {
+		start := time.Now()
 		storage.offsets[request.Cluster].consumerLock.RLock()
+		log.Debugf("Time taken on rlock in offsets_store.go:632: %v", time.Since(start))
 		if _, ok := storage.offsets[request.Cluster].consumer[request.Group]; ok {
 			if _, ok := storage.offsets[request.Cluster].consumer[request.Group][request.Topic]; ok {
 				response.OffsetList = make([]int64, len(storage.offsets[request.Cluster].consumer[request.Group][request.Topic]))
@@ -655,7 +668,9 @@ func (storage *OffsetStorage) debugPrintGroup(cluster string, group string) {
 	}
 
 	// Make sure the group even exists
+	start := time.Now()
 	clusterMap.consumerLock.RLock()
+	log.Debugf("Time taken on rlock in offsets_store.go:670: %v", time.Since(start))
 	consumerMap, ok := clusterMap.consumer[group]
 	if !ok {
 		clusterMap.consumerLock.RUnlock()
@@ -690,14 +705,14 @@ func (storage *OffsetStorage) debugPrintGroup(cluster string, group string) {
 func (storage *OffsetStorage) AcceptConsumerGroup(group string) bool {
 	// First check to make sure group is in the whitelist
 	if (storage.groupWhitelist != nil) && !storage.groupWhitelist.MatchString(group) {
-		return false;
+		return false
 	}
 
 	// The group is in the whitelist (or there is not whitelist).  Now check the blacklist
 	if (storage.groupBlacklist != nil) && storage.groupBlacklist.MatchString(group) {
-		return false;
+		return false
 	}
 
 	// good to go
-	return true;
+	return true
 }
